@@ -1,0 +1,6 @@
+{
+    "sourcefolder": "Y:\\Convert",
+    "destinationfolder": "Y:\\Converted",
+    "handbreak": "C:\\Program Files\\HandBrake\\HandBrakeCLI.exe",
+    "presettouse": "C:\\ScheduledScripts\\Convert-Handbreak\\preset.json"
+}
