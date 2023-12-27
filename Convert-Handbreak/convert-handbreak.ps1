@@ -2,7 +2,7 @@
 [CmdletBinding()]
 Param
 (
-    [Parameter(Mandatory = $false)][string]$ConfigFilePath = "C:\ScheduledScripts\Convert-Handbreak\config.json"
+    [Parameter(Mandatory = $false)][string]$ConfigFilePath = "C:\ScheduledScripts\Convert-Handbreak\config2.json"
 )
 
 #MODULES
@@ -36,35 +36,47 @@ else {
     Write-PSUtilsLogfile -LogLevel ERROR -msg "Could not load JSON Config '$ConfigFilePath': $($error[0])"
     exit
 }
-$filelist = Get-ChildItem $($jsonData.sourcefolder) -filter *.mkv -recurse
+foreach ($_folder in $jsondata.sourcefolder){
+    $filelist = Get-ChildItem $_folder -filter *.mkv -recurse
 
-$num = $filelist | Measure-Object
-$filecount = $num.count
-Write-PSUtilsLogfile -LogLevel INFO -msg "$filecount files found to convert."
-     
-$i = 0;
-ForEach ($file in $filelist) {
-    $i++;
-    $oldfile = $file.DirectoryName + "\" + $file.BaseName + $file.Extension;
-    $newfile = $file.DirectoryName + "\" + $file.BaseName + ".mp4";
-          
-    $progress = ($i / $filecount) * 100
-    $progress = [Math]::Round($progress, 2)
-     
-    Clear-Host
-    Write-Host -------------------------------------------------------------------------------
-    Write-Host Handbrake Batch Encoding
-    Write-Host "Processing - $oldfile"
-    Write-Host "File $i of $filecount - $progress%"
-    Write-Host -------------------------------------------------------------------------------
-    Write-PSUtilsLogfile -LogLevel INFO -msg "Start to convert $($file.BaseName)"
-    try {
-        Start-Process $($jsonData.handbreak) -ArgumentList "--preset-import-file $($jsonData.presettouse) -Z $($jsonData.presetname) -i "$oldfile" -o "$newfile" --verbose=0" -Wait -NoNewWindow -ErrorAction Stop
-        Write-PSUtilsLogfile -LogLevel INFO -msg "Converted $($file.BaseName)"     
-    }
-    catch {
-        Write-PSUtilsLogfile -LogLevel ERROR -msg "Error on $($file.BaseName) convert process: $error[0]"     
+    $num = $filelist | Measure-Object
+    $filecount = $num.count
+    Write-PSUtilsLogfile -LogLevel INFO -msg "$filecount files found to convert."
+         
+    $i = 0;
+    ForEach ($file in $filelist) {
+        $i++;
+        $oldfile = $file.DirectoryName + "\" + $file.BaseName + $file.Extension;
+        $newfile = $file.DirectoryName + "\" + $file.BaseName + ".mp4";
+              
+        $progress = ($i / $filecount) * 100
+        $progress = [Math]::Round($progress, 2)
+         
+        Clear-Host
+        Write-Host -------------------------------------------------------------------------------
+        Write-Host Handbrake Batch Encoding
+        Write-Host "Processing - $oldfile"
+        Write-Host "File $i of $filecount - $progress%"
+        Write-Host -------------------------------------------------------------------------------
+        Write-PSUtilsLogfile -LogLevel INFO -msg "Start to convert $($file.BaseName)"
+        try {
+            Start-Process $($jsonData.handbreak) -ArgumentList "--preset-import-file `"$($jsonData.presettouse)`" -Z `"$($jsonData.presetname)`" -i `"$oldfile`" -o `"$newfile`"" -Wait -NoNewWindow -ErrorAction Stop
+            Write-PSUtilsLogfile -LogLevel INFO -msg "Converted $($file.BaseName)"
+            $success = $true
+        }
+        catch {
+            Write-PSUtilsLogfile -LogLevel ERROR -msg "Error on $($file.BaseName) convert process: $error[0]"
+            $success = $false
+        }
+        if ($success){
+            try {
+                Remove-Item -Path $oldfile -Force -ErrorAction Stop
+                Write-PSUtilsLogfile -LogLevel INFO -msg "Removed $oldfile"
+            }
+            catch {
+                Write-PSUtilsLogfile -LogLevel ERROR -msg "$oldfile could not be deleted $error[0]"
+            }
+        }
     }
 }
 Write-PSUtilsLogfile -LogLevel INFO -msg "======== MARIANNE IST FERTIG ========"
-
