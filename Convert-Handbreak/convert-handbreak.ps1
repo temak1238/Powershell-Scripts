@@ -2,12 +2,19 @@
 [CmdletBinding()]
 Param
 (
-    [Parameter(Mandatory = $false)][string]$ConfigFilePath = "C:\ScheduledScripts\Convert-Handbreak\config2.json"
+    [Parameter(Mandatory = $false)][string]$ConfigFilePath = "D:\GitHub\PowerShell\Convert-Handbreak\config.json"
 )
+try {
+    Set-ExecutionPolicy Bypass -scope Process -Force -ErrorAction Stop
+}
+catch {
+    Write-Error "Could not set the ExecutionPolicy: $error[0]"
+    Exit
+}
 
 #MODULES
 try {
-    Import-Module PS-utilities -MinimumVersion 2023.12.14 -ErrorAction Stop
+    Import-Module PS-Utilities -MinimumVersion 2023.12.14 -ErrorAction Stop
 }
 catch {
     Write-Error "Something went wrong on Import-Module Part: $error[0]"
@@ -24,8 +31,22 @@ try {
 catch {
     Write-Error "Unable to initialize the log folder!"
     exit
-}    
+}
 Write-PSUtilsLogfile -LogLevel INFO -msg "======== GIB FEUER MARIANNE ========"
+
+if ($jsonData.presettouse){
+    $preset = $($jsonData.presettouse)
+}
+else {
+    $preset = "$PSScriptRoot\preset.json"
+}
+
+if ($jsonData.presetname) {
+    $presetname = $($jsonData.presetname)
+}
+else {
+    $presetname = "H.265 10Bit Original Resolution"
+}
 
 #Config File import
 if ($ConfigFilePath) {
@@ -36,6 +57,7 @@ else {
     Write-PSUtilsLogfile -LogLevel ERROR -msg "Could not load JSON Config '$ConfigFilePath': $($error[0])"
     exit
 }
+
 foreach ($_folder in $jsondata.sourcefolder){
     $filelist = Get-ChildItem $_folder -filter *.mkv -recurse
 
@@ -43,24 +65,18 @@ foreach ($_folder in $jsondata.sourcefolder){
     $filecount = $num.count
     Write-PSUtilsLogfile -LogLevel INFO -msg "$filecount files found to convert."
          
-    $i = 0;
     ForEach ($file in $filelist) {
-        $i++;
         $oldfile = $file.DirectoryName + "\" + $file.BaseName + $file.Extension;
         $newfile = $file.DirectoryName + "\" + $file.BaseName + ".mp4";
-              
-        $progress = ($i / $filecount) * 100
-        $progress = [Math]::Round($progress, 2)
-         
-        Clear-Host
-        Write-Host -------------------------------------------------------------------------------
-        Write-Host Handbrake Batch Encoding
+
+        if ($newfile -like '*264*'){
+            $newfile = $newfile -replace '264', '265'
+        }
+        
         Write-Host "Processing - $oldfile"
-        Write-Host "File $i of $filecount - $progress%"
-        Write-Host -------------------------------------------------------------------------------
         Write-PSUtilsLogfile -LogLevel INFO -msg "Start to convert $($file.BaseName)"
         try {
-            Start-Process $($jsonData.handbreak) -ArgumentList "--preset-import-file `"$($jsonData.presettouse)`" -Z `"$($jsonData.presetname)`" -i `"$oldfile`" -o `"$newfile`"" -Wait -NoNewWindow -ErrorAction Stop
+            Start-Process $($jsonData.handbreak) -ArgumentList "--preset-import-file `"$preset`" -Z `"$presetname`" -i `"$oldfile`" -o `"$newfile`"" -Wait -NoNewWindow -ErrorAction Stop
             Write-PSUtilsLogfile -LogLevel INFO -msg "Converted $($file.BaseName)"
             $success = $true
         }
@@ -75,7 +91,7 @@ foreach ($_folder in $jsondata.sourcefolder){
             }
             catch {
                 Write-PSUtilsLogfile -LogLevel ERROR -msg "$oldfile could not be deleted $error[0]"
-            }
+            }    
         }
     }
 }
