@@ -2,7 +2,7 @@
 [CmdletBinding()]
 Param
 (
-    [Parameter(Mandatory = $false)][string]$ConfigFilePath = "D:\GitHub\PowerShell\Convert-Handbreak\config.json"
+    [Parameter(Mandatory = $true)][string]$ConfigFilePath 
 )
 try {
     Set-ExecutionPolicy Bypass -scope Process -Force -ErrorAction Stop
@@ -72,18 +72,26 @@ foreach ($_folder in $jsondata.sourcefolder){
         if ($newfile -like '*264*'){
             $newfile = $newfile -replace '264', '265'
         }
-        
+
         Write-Host "Processing - $oldfile"
         Write-PSUtilsLogfile -LogLevel INFO -msg "Start to convert $($file.BaseName)"
         try {
-            Start-Process $($jsonData.handbreak) -ArgumentList "--preset-import-file `"$preset`" -Z `"$presetname`" -i `"$oldfile`" -o `"$newfile`"" -Wait -NoNewWindow -ErrorAction Stop
-            Write-PSUtilsLogfile -LogLevel INFO -msg "Converted $($file.BaseName)"
-            $success = $true
+            Clear-Variable process -ErrorAction SilentlyContinue
+            $process = Start-Process $($jsonData.handbreak) -ArgumentList "--preset-import-file `"$preset`" -Z `"$presetname`" -i `"$oldfile`" -o `"$newfile`"" -Wait -PassThru -ErrorAction Stop
+            if ($process.ExitCode -eq "0"){
+                Write-PSUtilsLogfile -LogLevel INFO -msg "Converted $($file.BaseName) in $($process.TotalProcessorTime.Minutes) Minutes."
+                $success = $true
+            }
+            else{
+                Write-PSUtilsLogfile -LogLevel ERROR -msg "Cant get the right Exit Code for $($file.BaseName). Something went wrong."
+                $success = $false
+            }
         }
         catch {
             Write-PSUtilsLogfile -LogLevel ERROR -msg "Error on $($file.BaseName) convert process: $error[0]"
             $success = $false
         }
+
         if ($success){
             try {
                 Remove-Item -Path $oldfile -Force -ErrorAction Stop
